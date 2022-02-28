@@ -102,22 +102,39 @@ LIMIT 1);
 
 -- 8. Customers who spent more than the average payments.
 
--- Spending per Customer
+-- List with Spending per Customer
 SELECT 
 	distinct(customer_id),
 	sum(amount) over (partition by customer_id)  as lifetime_spendings
-FROM sakila.payment p;
+FROM sakila.payment p
+Order BY lifetime_spendings DESC;
 
--- Average spending per customer
+SELECT distinct(customer_id), sum(amount) as lifetime_spendings
+FROM sakila.payment p
+GROUP BY customer_id
+Order BY lifetime_spendings DESC;
+
+-- Value for Average spending per customer
 SELECT 
 	sum(amount)/count(distinct(customer_id))
 FROM sakila.payment p;
 
--- Select Customers
 
-SELECT 
-	distinct(customer_id),
-    sum(amount) over (partition by customer_id)  as lifetime_spendings
-FROM sakila.payment
-WHERE sum(amount) over (partition by customer_id) > (SELECT	sum(amount)/count(distinct(customer_id)) FROM sakila.payment p);
+-- Select Customers with higher spending than average
 
+SELECT distinct(customer_id), lifetime_spendings
+FROM 
+	(SELECT distinct(customer_id), sum(amount) as lifetime_spendings
+	FROM sakila.payment p
+	GROUP BY customer_id) sub
+WHERE lifetime_spendings > (SELECT sum(amount)/count(distinct(customer_id)) FROM sakila.payment p)
+Order by lifetime_spendings DESC;
+    
+-- Export list of Names with above average spendings
+SELECT customer_id, first_name, last_name FROM sakila.customer c
+Where c.customer_id in (   
+SELECT distinct(customer_id)
+FROM (SELECT distinct(customer_id), sum(amount) as lifetime_spendings
+		FROM sakila.payment p
+		GROUP BY customer_id) sub
+WHERE lifetime_spendings > (SELECT sum(amount)/count(distinct(customer_id)) FROM sakila.payment p));
